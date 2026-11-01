@@ -463,6 +463,7 @@ def build_parser():
     p.add_argument("--gpx", help="route (GPX from your watch, or the official course)")
     p.add_argument("--demo", action="store_true", help="offline sample data (no GPX / network needed)")
     p.add_argument("--out", default="out")
+    p.add_argument("--offline", action="store_true", help="no downloads: route + text only (flat, no buildings/water)")
     g = p.add_argument_group("tile")
     g.add_argument("--size", type=float, default=250, help="tile edge in mm (default 250)")
     g.add_argument("--band", type=float, default=30, help="text band at the bottom, mm (0 = none)")
@@ -511,6 +512,9 @@ def main(argv=None):
     else:
         sys.exit("give --gpx FILE (or --demo)")
 
+    if a.offline:
+        buildings, water_polys = [], []
+        a.terrain = "flat"
     lines = a.line or []
     band = a.band if lines or a.band == 0 else 0
     if lines and band == 0:

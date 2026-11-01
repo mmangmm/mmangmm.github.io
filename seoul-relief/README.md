@@ -13,6 +13,8 @@ python make_relief.py --gpx my_run.gpx --out out \
     --line "JTBC SEOUL MARATHON 2026" --line "홍길동 · 42.195 km · 3:45:12" --font NanumGothicBold.ttf
 ```
 
+`--offline`을 붙이면 다운로드 없이 경로+문구만 빠르게 확인할 수 있다 (지형·건물·물 없음).
+
 출력: `body.stl`(흰색) · `route.stl`(빨강, 몸체에 0.3mm 겹침) · `text.stl`(문구) · `preview.png`.
 슬라이서에서 세 파일을 한 오브젝트의 파트로 불러 필라멘트만 다르게 지정한다 (좌표가 동일).
 
