@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>캔버스 노트</title>
+<style>
+  :root { --desk:#f3f1ee; --paper:#fbfaf8; --ink:#262626; --faint:rgba(38,38,38,.45); --line:rgba(38,38,38,.08); --note:#f6eac3; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--desk); color:var(--ink);
+    font-family:-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif; overflow:hidden; }
+  header { position:fixed; inset:0 0 auto 0; height:56px; display:flex; align-items:center; gap:12px; padding:0 20px;
+    background:var(--paper); border-bottom:1px solid var(--line); z-index:10; }
+  header h1 { font-size:18px; font-weight:600; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  header .crumb { color:var(--faint); font-size:15px; cursor:pointer; white-space:nowrap; }
+  header .spacer { flex:1; }
+  header .made { color:var(--faint); font-size:13px; white-space:nowrap; }
+  #stage { position:fixed; inset:56px 0 0 0; overflow:hidden; touch-action:none; cursor:grab; }
+  #stage.dragging { cursor:grabbing; }
+  #board { position:absolute; left:0; top:0; transform-origin:0 0; background:var(--paper); box-shadow:0 1px 12px rgba(0,0,0,.06); }
+  #board.dots { background-image:radial-gradient(rgba(38,38,38,.16) 1.4px, transparent 1.6px); background-size:32px 32px; }
+  svg.layer { position:absolute; left:0; top:0; overflow:visible; pointer-events:none; }
+  .card { position:absolute; }
+  .note { background:var(--note); border-radius:6px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.08);
+    font-size:17px; line-height:1.45; white-space:pre-wrap; overflow:hidden; }
+  .note b { display:block; font-size:19px; margin-bottom:4px; }
+  .image { border-radius:8px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.12); background:#e9e6e1; cursor:zoom-in; }
+  .image img { width:100%; height:100%; object-fit:cover; display:block; }
+  .profile { background:#fff; border-radius:12px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,.08); overflow:hidden; }
+  .profile h2 { margin:0 0 8px; font-size:30px; font-weight:700; }
+  .profile p { margin:0 0 12px; font-size:17px; line-height:1.5; white-space:pre-wrap; color:rgba(38,38,38,.8); }
+  .profile a { display:block; color:#4578bf; font-size:15px; text-decoration:none; margin-top:2px; pointer-events:auto; }
+  .cover { border-radius:4px 10px 10px 4px; box-shadow:0 3px 10px rgba(0,0,0,.16); position:relative; overflow:hidden; }
+  .cover .label { position:absolute; left:14px; right:14px; top:22px; color:rgba(255,255,255,.92); font-size:15px; font-weight:600; }
+  .cover.paper { border-radius:6px; border:1px solid var(--line); }
+  .cover.paper .label { color:var(--ink); }
+  .title { text-align:center; font-size:15px; margin-top:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .icon { display:flex; flex-direction:column; align-items:center; }
+  .folder-shape { width:76px; height:58px; margin-top:6px; background:#3d3c3a; border-radius:6px; position:relative; }
+  .folder-shape::before { content:""; position:absolute; left:0; top:-7px; width:32px; height:12px; background:#3d3c3a; border-radius:4px 4px 0 0; }
+  .doc-shape { width:50px; height:64px; margin-top:6px; background:#fff; border:1px solid rgba(38,38,38,.18); border-radius:4px; }
+  .clickable { cursor:pointer; }
+  [hidden] { display:none !important; }
+  #message { position:fixed; inset:56px 0 0 0; display:flex; align-items:center; justify-content:center; color:var(--faint); font-size:16px; text-align:center; padding:24px; }
+  #zoom { position:fixed; right:16px; bottom:16px; display:flex; gap:4px; background:var(--paper); border-radius:12px; padding:4px;
+    box-shadow:0 2px 10px rgba(0,0,0,.1); z-index:10; }
+  #zoom button { border:0; background:none; font-size:20px; width:40px; height:36px; cursor:pointer; color:rgba(38,38,38,.7); }
+  #viewer { position:fixed; inset:0; background:rgba(0,0,0,.92); display:none; align-items:center; justify-content:center; z-index:20; }
+  #viewer.on { display:flex; }
+  #viewer img { max-width:96vw; max-height:92vh; object-fit:contain; }
+  #viewer .nav { position:absolute; top:50%; transform:translateY(-50%); color:#fff; font-size:40px; background:none; border:0; cursor:pointer; padding:20px; opacity:.8; }
+  #viewer .prev { left:4px; } #viewer .next { right:4px; }
+  #viewer .close { position:absolute; top:12px; right:16px; color:#fff; font-size:28px; background:none; border:0; cursor:pointer; }
+</style>
+</head>
+<body>
+<header>
+  <span class="crumb" id="back" hidden>‹</span>
+  <h1 id="name">캔버스 노트</h1>
+  <span class="spacer"></span>
+  <span class="made">캔버스 노트로 만들었어요</span>
+</header>
+<div id="stage"><div id="board"></div></div>
+<div id="message">불러오는 중…</div>
+<div id="zoom" hidden><button id="zout" aria-label="작게">−</button><button id="zfit" aria-label="전체 보기">⤢</button><button id="zin" aria-label="크게">+</button></div>
+<div id="viewer"><button class="close" aria-label="닫기">✕</button><button class="nav prev" aria-label="이전">‹</button><img alt=""><button class="nav next" aria-label="다음">›</button></div>
+<script>
+// 공개한 캔버스를 읽기만 하는 웹 열람 — 로그인 없이, 앱에 넣는 공개 키로 읽는다(서버 규칙이 공개한 것만 보여 준다)
+const SUPABASE = "https://xkqwwvllljrukkhpxucz.supabase.co";
+const KEY = "sb_publishable_Fm_38DGJmZ0hMA9EHc8FAQ_G4YkxO0m";
+const BOARD_W = 4800, BOARD_H = 3200;
+const LINE_COLORS = { gray:"rgba(38,38,38,.3)", ink:"rgba(38,38,38,.8)", red:"rgb(209,84,69)", blue:"rgb(69,120,191)", green:"rgb(92,148,97)", yellow:"rgb(224,173,51)" };
+
+const $ = id => document.getElementById(id);
+const shareID = new URLSearchParams(location.search).get("s");
+let boards = {}, items = {}, connectors = {}, documents = {}, rootID = null, currentID = null, stack = [];
+let view = { x:0, y:0, z:1 };
+const imageCache = {};
+
+async function rest(path) {
+  const r = await fetch(`${SUPABASE}/rest/v1/${path}`, { headers: { apikey: KEY } });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function fileURL(path) {
+  if (!imageCache[path]) {
+    imageCache[path] = fetch(`${SUPABASE}/storage/v1/object/authenticated/files/${path.split("/").map(encodeURIComponent).join("/")}`, { headers: { apikey: KEY } })
+      .then(r => r.ok ? r.blob() : null).then(b => b ? URL.createObjectURL(b) : null);
+  }
+  return imageCache[path];
+}
+
+async function load() {
+  if (!shareID) return fail("링크가 올바르지 않아요.");
+  try {
+    const shares = await rest(`shares?id=eq.${encodeURIComponent(shareID)}&is_public=eq.true&select=id,title,workspace_id,root_id`);
+    if (!shares.length) return fail("공개가 끝났거나 없는 캔버스예요.");
+    const share = shares[0];
+    // 이름은 작업 공간의 지금 이름(공개한 뒤 바꿨어도)
+    const ws = await rest(`workspaces?id=eq.${share.workspace_id}&select=name`);
+    share.title = ws[0]?.name || share.title;
+    document.title = share.title + " · 캔버스 노트";
+    const q = `workspace_id=eq.${share.workspace_id}&deleted=eq.false`;
+    const [b, i, c, d] = await Promise.all([
+      rest(`boards?${q}&select=id,parent_id,name,background,drawing`),
+      rest(`items?${q}&select=id,board_id,data`),
+      rest(`connectors?${q}&select=id,board_id,data`),
+      rest(`documents?${q}&select=id,kind,data`),
+    ]);
+    b.forEach(x => { boards[x.id] = x; items[x.id] = []; connectors[x.id] = []; });
+    i.forEach(x => (items[x.board_id] ||= []).push(x.data));
+    c.forEach(x => (connectors[x.board_id] ||= []).push(x.data));
+    d.forEach(x => documents[x.data.id?.toLowerCase?.() ?? x.id] = x.data);
+    rootID = share.root_id;
+    if (!boards[rootID]) boards[rootID] = { id: rootID, name: share.title };
+    boards[rootID].name = share.title;
+    $("message").hidden = true;
+    $("zoom").hidden = false;
+    open(rootID, false);
+  } catch (e) {
+    console.error(e);
+    fail("불러오지 못했어요. 잠시 뒤 다시 열어 주세요.");
+  }
+}
+function fail(text) { $("message").textContent = text; $("message").hidden = false; }
+
+const lower = v => (v || "").toLowerCase();
+function open(id, push = true) {
+  if (push && currentID) stack.push(currentID);
+  currentID = id;
+  const board = boards[id];
+  $("name").textContent = board?.name || "";
+  $("back").hidden = stack.length === 0;
+  render();
+  fit();
+}
+$("back").onclick = () => { if (stack.length) { currentID = null; open(stack.pop(), false); } };
+
+// 카드의 몸체 한가운데(앱의 BoardItem.anchor와 같다)
+function anchor(it) {
+  switch (it.kind) {
+    case "notebook": case "diary": case "pdf": return [it.x + it.width / 2, it.y + it.width * (it.aspect || 1.414) / 2];
+    case "document": return [it.x + it.width / 2, it.y + 38];
+    case "folder": return [it.x + it.width / 2, it.y + 32];
+    default: return [it.x + it.width / 2, it.y + it.height / 2];
+  }
+}
+function color(hex) {
+  const h = (hex || "#262626FF").replace("#", "");
+  const n = parseInt(h.slice(0, 6), 16), a = h.length >= 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1;
+  return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a.toFixed(3)})`;
+}
+function esc(s) { return (s || "").replace(/[&<>"]/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" })[ch]); }
+function link(line) {
+  const t = line.trim();
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) return `<a href="mailto:${esc(t)}">${esc(t)}</a>`;
+  if (/^https?:\/\//i.test(t)) return `<a href="${esc(t)}" target="_blank" rel="noopener">${esc(t.replace(/^https?:\/\//i, ""))}</a>`;
+  if (/^[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(t)) return `<a href="https://${esc(t)}" target="_blank" rel="noopener">${esc(t)}</a>`;
+  return `<span style="display:block;font-size:15px;color:rgba(38,38,38,.7)">${esc(t)}</span>`;
+}
+
+function render() {
+  const el = $("board");
+  el.innerHTML = "";
+  el.style.width = BOARD_W + "px";
+  el.style.height = BOARD_H + "px";
+  const board = boards[currentID] || {};
+  el.className = board.background === "dots" ? "dots" : "";
+  const list = items[currentID] || [];
+  const byID = Object.fromEntries(list.map(it => [lower(it.id), it]));
+  const NS = "http://www.w3.org/2000/svg";
+
+  // 잇는 선 — 카드 아래
+  const lines = document.createElementNS(NS, "svg");
+  lines.setAttribute("class", "layer"); lines.setAttribute("width", BOARD_W); lines.setAttribute("height", BOARD_H);
+  for (const c of connectors[currentID] || []) {
+    const a = byID[lower(c.from)], b = byID[lower(c.to)];
+    if (!a || !b) continue;
+    const [sx, sy] = anchor(a), [ex, ey] = anchor(b);
+    const dx = ex - sx, dy = ey - sy, len = Math.max(Math.hypot(dx, dy), 1);
+    const st = c.style || {};
+    const bend = st.straight ? 0 : len * 0.12;
+    const cx = (sx + ex) / 2 - dy / len * bend, cy = (sy + ey) / 2 + dx / len * bend;
+    const p = document.createElementNS(NS, "path");
+    p.setAttribute("d", `M${sx},${sy} Q${cx},${cy} ${ex},${ey}`);
+    p.setAttribute("fill", "none");
+    p.setAttribute("stroke", LINE_COLORS[st.color || "gray"]);
+    p.setAttribute("stroke-width", st.width || 1.1);
+    p.setAttribute("stroke-linecap", "round");
+    if (st.dashed) p.setAttribute("stroke-dasharray", `${(st.width || 1.1) * 4} ${(st.width || 1.1) * 3}`);
+    lines.appendChild(p);
+  }
+  el.appendChild(lines);
+
+  const photos = list.filter(it => it.kind === "image");
+  for (const it of list) {
+    const card = document.createElement("div");
+    card.className = "card";
+    Object.assign(card.style, { left: it.x + "px", top: it.y + "px", width: it.width + "px", height: it.height + "px" });
+    switch (it.kind) {
+      case "note":
+        card.classList.add("note");
+        card.innerHTML = (it.title ? `<b>${esc(it.title)}</b>` : "") + esc(it.text);
+        card.style.height = "auto"; card.style.minHeight = it.height + "px";
+        break;
+      case "image": {
+        card.classList.add("image");
+        const img = document.createElement("img");
+        card.appendChild(img);
+        if (it.filePath) fileURL(it.filePath).then(u => { if (u) img.src = u; });
+        card.onclick = () => showPhoto(photos, photos.indexOf(it));
+        break;
+      }
+      case "profile":
+        card.classList.add("profile");
+        card.style.height = "auto"; card.style.minHeight = it.height + "px";
+        card.innerHTML = `<h2>${esc(it.title)}</h2>` + (it.text ? `<p>${esc(it.text)}</p>` : "")
+          + (it.contact || "").split("\n").filter(s => s.trim()).map(link).join("");
+        break;
+      case "notebook": case "diary": case "pdf": {
+        const doc = documents[lower(it.documentID)] || {};
+        const h = it.width * (it.aspect || 1.414);
+        const cover = document.createElement("div");
+        cover.style.height = h + "px";
+        if (it.kind === "diary") {
+          cover.className = "cover";
+          cover.style.background = doc.coverColor ? color(doc.coverColor) : "rgb(92,107,92)";
+          if (doc.coverLabel) cover.innerHTML = `<div class="label">${esc(doc.coverLabel)}</div>`;
+        } else {
+          cover.className = "cover paper";
+          cover.style.background = doc.noteColor ? color(doc.noteColor) : "var(--paper)";
+          if (it.kind === "pdf") cover.innerHTML = `<div class="label" style="color:var(--faint)">PDF</div>`;
+        }
+        card.appendChild(cover);
+        card.insertAdjacentHTML("beforeend", `<div class="title">${esc(doc.title || it.title)}</div>`);
+        card.style.height = "auto";
+        break;
+      }
+      case "folder": case "document": {
+        card.classList.add("icon");
+        card.innerHTML = `<div class="${it.kind === "folder" ? "folder-shape" : "doc-shape"}"></div><div class="title" style="width:100%">${esc(it.title)}</div>`;
+        const child = lower(it.childBoardID);
+        if (it.kind === "folder" && boards[child]) {
+          card.classList.add("clickable");
+          card.onclick = () => open(child);
+        }
+        break;
+      }
+    }
+    el.appendChild(card);
+  }
+
+  // 캔버스에 펜으로 쓴 것 — 카드 위
+  if (board.drawing?.length) {
+    const ink = document.createElementNS(NS, "svg");
+    ink.setAttribute("class", "layer"); ink.setAttribute("width", BOARD_W); ink.setAttribute("height", BOARD_H);
+    for (const s of board.drawing) {
+      if (!s.points?.length) continue;
+      const p = document.createElementNS(NS, "path");
+      p.setAttribute("d", s.points.map((v, k) => `${k ? "L" : "M"}${v[0]},${v[1]}`).join(" "));
+      const sizes = s.points.map(v => v[3] ?? s.width);
+      const w = sizes.reduce((a, b) => a + b, 0) / sizes.length;
+      p.setAttribute("fill", "none");
+      p.setAttribute("stroke", color(s.color));
+      p.setAttribute("stroke-width", s.tool === "marker" ? w : w * 0.85);
+      p.setAttribute("stroke-linecap", "round"); p.setAttribute("stroke-linejoin", "round");
+      if (s.tool === "marker") p.setAttribute("opacity", ".5");
+      ink.appendChild(p);
+    }
+    el.appendChild(ink);
+  }
+}
+
+// 보는 자리 — 화면 = 이동 + 판 × 배율
+function apply() { $("board").style.transform = `translate(${view.x}px,${view.y}px) scale(${view.z})`; }
+function fit() {
+  const list = items[currentID] || [];
+  const stage = $("stage").getBoundingClientRect();
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  if (list.length) {
+    x0 = Math.min(...list.map(i => i.x)); y0 = Math.min(...list.map(i => i.y));
+    x1 = Math.max(...list.map(i => i.x + i.width)); y1 = Math.max(...list.map(i => i.y + Math.max(i.height, i.width * (i.aspect || 0))));
+  }
+  for (const st of boards[currentID]?.drawing || []) for (const v of st.points || []) {
+    x0 = Math.min(x0, v[0]); y0 = Math.min(y0, v[1]); x1 = Math.max(x1, v[0]); y1 = Math.max(y1, v[1]);
+  }
+  if (!isFinite(x0)) { x0 = 0; y0 = 0; x1 = BOARD_W; y1 = BOARD_H; }
+  const pad = 48;
+  const z = Math.min((stage.width - pad * 2) / (x1 - x0), (stage.height - pad * 2) / (y1 - y0), 1.5);
+  view = { z, x: (stage.width - (x1 - x0) * z) / 2 - x0 * z, y: (stage.height - (y1 - y0) * z) / 2 - y0 * z };
+  apply();
+}
+function zoomAt(f, px, py) {
+  const z = Math.min(Math.max(view.z * f, 0.1), 4);
+  view.x = px - (px - view.x) * z / view.z;
+  view.y = py - (py - view.y) * z / view.z;
+  view.z = z;
+  apply();
+}
+const stage = $("stage");
+const pointers = new Map();
+let last = null, moved = 0;
+stage.addEventListener("pointerdown", e => {
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  moved = 0;
+  if (pointers.size === 1) { last = [e.clientX, e.clientY]; stage.classList.add("dragging"); }
+});
+stage.addEventListener("pointermove", e => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const before = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    pointers.set(e.pointerId, [e.clientX, e.clientY]);
+    const [c, d] = [...pointers.values()];
+    const after = Math.hypot(c[0] - d[0], c[1] - d[1]);
+    const r = stage.getBoundingClientRect();
+    if (before > 0) zoomAt(after / before, (c[0] + d[0]) / 2 - r.left, (c[1] + d[1]) / 2 - r.top);
+    return;
+  }
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  view.x += e.clientX - prev[0]; view.y += e.clientY - prev[1];
+  moved += Math.abs(e.clientX - prev[0]) + Math.abs(e.clientY - prev[1]);
+  apply();
+});
+const up = e => { pointers.delete(e.pointerId); if (!pointers.size) stage.classList.remove("dragging"); };
+stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up);
+// 끌었으면 카드 누름으로 치지 않는다
+stage.addEventListener("click", e => { if (moved > 6) e.stopPropagation(); }, true);
+stage.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = stage.getBoundingClientRect();
+  if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
+  else { view.x -= e.deltaX; view.y -= e.deltaY; apply(); }
+}, { passive: false });
+$("zin").onclick = () => { const r = stage.getBoundingClientRect(); zoomAt(1.25, r.width / 2, r.height / 2); };
+$("zout").onclick = () => { const r = stage.getBoundingClientRect(); zoomAt(0.8, r.width / 2, r.height / 2); };
+$("zfit").onclick = fit;
+addEventListener("resize", fit);
+
+// 사진 크게 보기 — 이 캔버스의 사진을 넘겨 본다
+const viewer = $("viewer");
+let shown = [], at = 0;
+async function showPhoto(list, index) {
+  shown = list; at = index;
+  viewer.classList.add("on");
+  const it = shown[at];
+  viewer.querySelector("img").src = it.filePath ? (await fileURL(it.filePath)) || "" : "";
+  viewer.querySelector(".prev").hidden = at === 0;
+  viewer.querySelector(".next").hidden = at === shown.length - 1;
+}
+viewer.querySelector(".close").onclick = () => viewer.classList.remove("on");
+viewer.querySelector(".prev").onclick = e => { e.stopPropagation(); if (at > 0) showPhoto(shown, at - 1); };
+viewer.querySelector(".next").onclick = e => { e.stopPropagation(); if (at < shown.length - 1) showPhoto(shown, at + 1); };
+viewer.onclick = e => { if (e.target === viewer) viewer.classList.remove("on"); };
+addEventListener("keydown", e => {
+  if (!viewer.classList.contains("on")) return;
+  if (e.key === "Escape") viewer.classList.remove("on");
+  if (e.key === "ArrowLeft" && at > 0) showPhoto(shown, at - 1);
+  if (e.key === "ArrowRight" && at < shown.length - 1) showPhoto(shown, at + 1);
+});
+
+load();
+</script>
+</body>
+</html>
