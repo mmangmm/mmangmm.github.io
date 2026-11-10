@@ -41,6 +41,16 @@
   .doc-shape { width:50px; height:64px; margin-top:6px; background:#fff; border:1px solid rgba(38,38,38,.18); border-radius:4px; }
   .clickable { cursor:pointer; }
   [hidden] { display:none !important; }
+  header #play { border:0; background:rgba(38,38,38,.07); border-radius:999px; padding:7px 14px; font-size:15px; cursor:pointer; color:var(--ink); }
+  body.playing header, body.playing #zoom { display:none !important; }
+  body.playing #stage { inset:0; cursor:default; }
+  #controls { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); display:none; align-items:center; gap:2px; padding:4px 6px;
+    background:var(--paper); border-radius:999px; box-shadow:0 2px 10px rgba(0,0,0,.12); z-index:15; transition:opacity .6s; }
+  body.playing #controls { display:flex; }
+  #controls.sleep { opacity:.12; }
+  #controls button { border:0; background:none; font-size:18px; width:40px; height:36px; cursor:pointer; color:rgba(38,38,38,.75); }
+  #controls button:disabled { opacity:.3; cursor:default; }
+  #controls span { min-width:56px; text-align:center; font-size:14px; color:rgba(38,38,38,.7); font-variant-numeric:tabular-nums; }
   #message { position:fixed; inset:56px 0 0 0; display:flex; align-items:center; justify-content:center; color:var(--faint); font-size:16px; text-align:center; padding:24px; }
   #zoom { position:fixed; right:16px; bottom:16px; display:flex; gap:4px; background:var(--paper); border-radius:12px; padding:4px;
     box-shadow:0 2px 10px rgba(0,0,0,.1); z-index:10; }
@@ -58,11 +68,13 @@
   <span class="crumb" id="back" hidden>‹</span>
   <h1 id="name">캔버스 노트</h1>
   <span class="spacer"></span>
+  <button id="play" hidden>▶ 발표</button>
   <span class="made">캔버스 노트로 만들었어요</span>
 </header>
 <div id="stage"><div id="board"></div></div>
 <div id="message">불러오는 중…</div>
 <div id="zoom" hidden><button id="zout" aria-label="작게">−</button><button id="zfit" aria-label="전체 보기">⤢</button><button id="zin" aria-label="크게">+</button></div>
+<div id="controls"><button id="prev" aria-label="이전">‹</button><span id="count"></span><button id="next" aria-label="다음">›</button><button id="stop" aria-label="발표 끝내기">✕</button></div>
 <div id="viewer"><button class="close" aria-label="닫기">✕</button><button class="nav prev" aria-label="이전">‹</button><img alt=""><button class="nav next" aria-label="다음">›</button></div>
 <script>
 // 공개한 캔버스를 읽기만 하는 웹 열람 — 로그인 없이, 앱에 넣는 공개 키로 읽는다(서버 규칙이 공개한 것만 보여 준다)
@@ -102,7 +114,7 @@ async function load() {
     document.title = share.title + " · 캔버스 노트";
     const q = `workspace_id=eq.${share.workspace_id}&deleted=eq.false`;
     const [b, i, c, d] = await Promise.all([
-      rest(`boards?${q}&select=id,parent_id,name,background,drawing`),
+      rest(`boards?${q}&select=id,parent_id,name,background,drawing,slides`),
       rest(`items?${q}&select=id,board_id,data`),
       rest(`connectors?${q}&select=id,board_id,data`),
       rest(`documents?${q}&select=id,kind,data`),
@@ -131,6 +143,7 @@ function open(id, push = true) {
   const board = boards[id];
   $("name").textContent = board?.name || "";
   $("back").hidden = stack.length === 0;
+  $("play").hidden = !(board?.slides?.length);
   render();
   fit();
 }
@@ -299,7 +312,7 @@ function zoomAt(f, px, py) {
 }
 const stage = $("stage");
 const pointers = new Map();
-let last = null, moved = 0;
+let last = null, moved = 0, swipe = 0;
 stage.addEventListener("pointerdown", e => {
   pointers.set(e.pointerId, [e.clientX, e.clientY]);
   moved = 0;
@@ -319,24 +332,122 @@ stage.addEventListener("pointermove", e => {
     return;
   }
   pointers.set(e.pointerId, [e.clientX, e.clientY]);
-  view.x += e.clientX - prev[0]; view.y += e.clientY - prev[1];
   moved += Math.abs(e.clientX - prev[0]) + Math.abs(e.clientY - prev[1]);
+  if (playing !== null) { swipe += e.clientX - prev[0]; return; }   // 발표 중에는 밀어 넘긴다
+  stopFlight();
+  view.x += e.clientX - prev[0]; view.y += e.clientY - prev[1];
   apply();
 });
-const up = e => { pointers.delete(e.pointerId); if (!pointers.size) stage.classList.remove("dragging"); };
+const up = e => {
+  pointers.delete(e.pointerId);
+  if (!pointers.size) stage.classList.remove("dragging");
+  if (playing !== null && !pointers.size && Math.abs(swipe) > 60) step(swipe < 0 ? 1 : -1);
+  swipe = 0;
+};
 stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up);
 // 끌었으면 카드 누름으로 치지 않는다
 stage.addEventListener("click", e => { if (moved > 6) e.stopPropagation(); }, true);
 stage.addEventListener("wheel", e => {
   e.preventDefault();
   const r = stage.getBoundingClientRect();
+  if (playing !== null) return;
+  stopFlight();
   if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
   else { view.x -= e.deltaX; view.y -= e.deltaY; apply(); }
 }, { passive: false });
 $("zin").onclick = () => { const r = stage.getBoundingClientRect(); zoomAt(1.25, r.width / 2, r.height / 2); };
 $("zout").onclick = () => { const r = stage.getBoundingClientRect(); zoomAt(0.8, r.width / 2, r.height / 2); };
 $("zfit").onclick = fit;
-addEventListener("resize", fit);
+addEventListener("resize", () => { if (playing !== null) place(slides()[playing]); else fit(); });
+
+// 발표 — 앱에서 정한 장면(판 위의 네모)을 순서대로, 누를 때마다 날아가며 확대한다(앱의 Presentation.swift와 같은 움직임)
+let playing = null, flight = 0, sleepTimer = 0;
+const slides = () => boards[currentID]?.slides || [];
+function stageSize() { const r = stage.getBoundingClientRect(); return [r.width, r.height]; }
+function fitZoom(r) { const [w, h] = stageSize(); return Math.min(Math.max(Math.min(w / r.width, h / r.height), 0.1), 4); }
+function place(r) {
+  if (!r) return;
+  const [w, h] = stageSize(), z = fitZoom(r);
+  view = { z, x: w / 2 - (r.x + r.width / 2) * z, y: h / 2 - (r.y + r.height / 2) * z };
+  apply();
+}
+function stopFlight() { cancelAnimationFrame(flight); flight = 0; }
+function fly(r) {
+  stopFlight();
+  const [w, h] = stageSize();
+  const z0 = view.z, c0 = { x: (w / 2 - view.x) / z0, y: (h / 2 - view.y) / z0 };
+  const z1 = fitZoom(r), c1 = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  // 두 자리를 함께 볼 수 있는 배율보다 가까우면 그만큼 중간에 물러난다
+  const sw = w / z0, sh = h / z0;
+  const ux0 = Math.min(c0.x - sw / 2, r.x), uy0 = Math.min(c0.y - sh / 2, r.y);
+  const ux1 = Math.max(c0.x + sw / 2, r.x + r.width), uy1 = Math.max(c0.y + sh / 2, r.y + r.height);
+  const both = fitZoom({ width: ux1 - ux0, height: uy1 - uy0 });
+  const dip = Math.max(0, Math.log(Math.min(z0, z1)) - Math.log(both)) * 0.7;
+  const a = Math.log(z0), b = Math.log(z1), start = performance.now(), dur = 900;
+  const frame = now => {
+    const t = Math.min(1, (now - start) / dur);
+    const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const z = Math.exp(a + (b - a) * e - dip * Math.sin(Math.PI * e));
+    const cx = c0.x + (c1.x - c0.x) * e, cy = c0.y + (c1.y - c0.y) * e;
+    view = { z, x: w / 2 - cx * z, y: h / 2 - cy * z };
+    apply();
+    flight = t < 1 ? requestAnimationFrame(frame) : 0;
+  };
+  flight = requestAnimationFrame(frame);
+}
+function show() {
+  const list = slides();
+  $("count").textContent = `${playing + 1} / ${list.length}`;
+  $("prev").disabled = playing === 0;
+  $("next").disabled = playing === list.length - 1;
+  wake();
+}
+function wake() {
+  $("controls").classList.remove("sleep");
+  clearTimeout(sleepTimer);
+  sleepTimer = setTimeout(() => $("controls").classList.add("sleep"), 2500);
+}
+function startPlaying() {
+  if (!slides().length) return;
+  playing = 0;
+  document.body.classList.add("playing");
+  document.documentElement.requestFullscreen?.().catch(() => {});
+  // 위 막대가 사라져 화면이 커진 뒤에 난다
+  requestAnimationFrame(() => { fly(slides()[0]); show(); });
+}
+function stopPlaying() {
+  if (playing === null) return;
+  playing = null;
+  stopFlight();
+  document.body.classList.remove("playing");
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  requestAnimationFrame(fit);
+}
+function step(d) {
+  if (playing === null) return;
+  const next = playing + d;
+  if (next < 0 || next >= slides().length) return;
+  playing = next;
+  fly(slides()[playing]);
+  show();
+}
+$("play").onclick = startPlaying;
+$("prev").onclick = () => step(-1);
+$("next").onclick = () => step(1);
+$("stop").onclick = stopPlaying;
+$("controls").addEventListener("pointerdown", wake);
+// 발표 중 빈 곳을 누르면 다음 장면(카드는 그대로 열린다)
+stage.addEventListener("click", e => {
+  if (playing === null || e.target.closest(".clickable, a")) return;
+  step(1);
+});
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && playing !== null) stopPlaying(); });
+addEventListener("keydown", e => {
+  if (playing === null || viewer.classList.contains("on")) return;
+  if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); step(1); }
+  if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); step(-1); }
+  if (e.key === "Escape") stopPlaying();
+});
 
 // 사진 크게 보기 — 이 캔버스의 사진을 넘겨 본다
 const viewer = $("viewer");
