@@ -1,0 +1,5 @@
+# 로그인 세션·키는 절대 커밋하지 않는다 (이 저장소는 공개 GitHub Pages)
+.env
+auth_state.json
+output/
+__pycache__/
