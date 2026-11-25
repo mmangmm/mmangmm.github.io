@@ -1,0 +1,6 @@
+numpy
+scipy
+shapely
+pyproj
+pillow
+requests
