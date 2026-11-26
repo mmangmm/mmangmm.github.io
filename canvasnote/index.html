@@ -21,14 +21,20 @@
   #board.dots { background-image:radial-gradient(rgba(38,38,38,.16) 1.4px, transparent 1.6px); background-size:32px 32px; }
   svg.layer { position:absolute; left:0; top:0; overflow:visible; pointer-events:none; }
   .card { position:absolute; }
+  .card.link { background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 3px 8px rgba(0,0,0,.08); border:1px solid rgba(0,0,0,.06); text-decoration:none; color:inherit; display:block; }
+  .card.link img { width:100%; object-fit:cover; display:block; }
+  .card.link .lt { font-weight:600; font-size:16px; padding:14px 16px 4px; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .card.link .lh { font-size:13px; color:rgba(43,43,43,.5); padding:0 16px 14px; }
   .note { background:var(--note); border-radius:6px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.08);
     font-size:17px; line-height:1.45; white-space:pre-wrap; overflow:hidden; }
   .note b { display:block; font-size:19px; margin-bottom:4px; }
   .image { border-radius:8px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.12); background:#e9e6e1; cursor:zoom-in; }
+  .image.slot { background:rgba(38,38,38,.05); box-shadow:none; border:1.5px dashed rgba(38,38,38,.15); cursor:default; }
   .image img { width:100%; height:100%; object-fit:cover; display:block; }
   .profile { background:#fff; border-radius:12px; padding:24px 28px; box-shadow:0 2px 12px rgba(0,0,0,.08); overflow:hidden; }
   .profile h2 { margin:0 0 8px; font-size:30px; font-weight:700; }
   .profile p { margin:0 0 12px; font-size:17px; line-height:1.5; white-space:pre-wrap; color:rgba(38,38,38,.8); }
+  .profile .plain { display:block; font-size:15px; color:rgba(38,38,38,.7); }
   .profile a { display:block; color:#4578bf; font-size:15px; text-decoration:none; margin-top:2px; pointer-events:auto; }
   .cover { border-radius:4px 10px 10px 4px; box-shadow:0 3px 10px rgba(0,0,0,.16); position:relative; overflow:hidden; }
   .cover .label { position:absolute; left:14px; right:14px; top:22px; color:rgba(255,255,255,.92); font-size:15px; font-weight:600; }
@@ -55,11 +61,69 @@
   #zoom { position:fixed; right:16px; bottom:16px; display:flex; gap:4px; background:var(--paper); border-radius:12px; padding:4px;
     box-shadow:0 2px 10px rgba(0,0,0,.1); z-index:10; }
   #zoom button { border:0; background:none; font-size:20px; width:40px; height:36px; cursor:pointer; color:rgba(38,38,38,.7); }
+  /* 포트폴리오 — 표지 한 장, 그 뒤엔 캔버스만(확대 · 이동만, 도구 막대 없음) */
+  body.portfolio header, body.portfolio #zoom { display:none !important; }
+  body.portfolio #stage, body.portfolio #message { inset:0; }
+  #cover { position:fixed; inset:0; z-index:30; display:none; flex-direction:column; justify-content:flex-end;
+    padding:clamp(28px, 7vw, 96px); background:var(--paper) center/cover no-repeat; color:var(--ink);
+    transition:opacity .5s, transform .5s; }
+  #cover.on { display:flex; }
+  #cover.leaving { opacity:0; transform:scale(1.02); pointer-events:none; }
+  #cover.light { color:#fff; }
+  #cover.photo::before { content:""; position:absolute; inset:0; background:linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.6)); }
+  #cover > * { position:relative; max-width:880px; }
+  #cover h1 { font-size:clamp(40px, 8vw, 88px); font-weight:700; line-height:1.05; margin:0 0 20px; letter-spacing:-.02em; word-break:keep-all; }
+  #cover .intro { font-size:clamp(17px, 2.2vw, 22px); line-height:1.6; margin:0 0 24px; white-space:pre-wrap; opacity:.85; word-break:keep-all; }
+  #cover .contact a, #cover .contact span { display:inline-block; margin:0 18px 6px 0; font-size:16px; color:inherit; opacity:.75; text-decoration:none; }
+  #cover .contact a:hover { opacity:1; text-decoration:underline; }
+  #cover .go { display:flex; gap:10px; margin-top:28px; flex-wrap:wrap; }
+  #cover .go button { border:0; border-radius:999px; padding:13px 24px; font-size:16px; font-weight:600; cursor:pointer;
+    background:var(--ink); color:#fff; font-family:inherit; }
+  #cover.light .go button { background:#fff; color:#222; }
+  #cover .go button.ghost { background:transparent; color:inherit; box-shadow:inset 0 0 0 1.5px currentColor; }
+  #cover .credit { position:absolute; right:20px; bottom:16px; font-size:12px; opacity:.4; }
+  #home { position:fixed; left:16px; top:16px; z-index:12; width:40px; height:40px; border:0; border-radius:50%;
+    background:rgba(251,250,248,.85); box-shadow:0 1px 6px rgba(0,0,0,.12); font-size:22px; line-height:1; cursor:pointer; color:var(--ink);
+    display:none; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+  body.portfolio #home { display:block; }
+  body.portfolio.playing #home { display:none; }
+  .profile.dark h2, .profile.dark p, .profile.dark a, .profile.dark span { color:#fff !important; }
+  .profile.photo { background-size:cover; background-position:center; display:flex; flex-direction:column; justify-content:flex-end; }
   #viewer { position:fixed; inset:0; background:rgba(0,0,0,.92); display:none; align-items:center; justify-content:center; z-index:20; }
   #viewer.on { display:flex; }
   #viewer img { max-width:96vw; max-height:92vh; object-fit:contain; }
   #viewer .nav { position:absolute; top:50%; transform:translateY(-50%); color:#fff; font-size:40px; background:none; border:0; cursor:pointer; padding:20px; opacity:.8; }
   #viewer .prev { left:4px; } #viewer .next { right:4px; }
+  /* 문서 읽기 — 마크다운을 꾸며 보인다 */
+  #docview { position:fixed; inset:0; background:rgba(30,28,24,.45); display:none; align-items:center; justify-content:center; z-index:21; }
+  #docview.on { display:flex; }
+  #docview .sheet { background:var(--paper, #fbfaf7); width:min(720px, 94vw); max-height:88vh; overflow:auto; border-radius:16px;
+    padding:28px 32px 40px; box-shadow:0 20px 60px rgba(0,0,0,.25); position:relative; color:#2b2b2b; line-height:1.65; font-size:17px; }
+  #docview .sheet h1.doc-title { font-size:26px; margin:0 0 14px; }
+  #docview .md h1 { font-size:26px; margin:18px 0 6px; } #docview .md h2 { font-size:21px; margin:16px 0 4px; } #docview .md h3 { font-size:18px; margin:14px 0 4px; }
+  #docview .md p { margin:4px 0; } #docview .md ul, #docview .md ol { margin:4px 0; padding-left:24px; }
+  #docview .md li.task { list-style:none; margin-left:-22px; } #docview .md li.task.done { color:#999; text-decoration:line-through; }
+  #docview .md li.task .box { display:inline-block; width:15px; height:15px; border:1.6px solid #c8553d; border-radius:4px; margin-right:8px; vertical-align:-2px; text-align:center; font-size:12px; line-height:13px; color:#fff; }
+  #docview .md li.task.done .box { background:#c8553d; border-color:#c8553d; text-decoration:none; }
+  #docview .md blockquote { margin:6px 0; padding-left:12px; border-left:3px solid #ddd; color:#777; }
+  #docview .md code { background:rgba(0,0,0,.06); padding:1px 5px; border-radius:4px; font-size:15px; }
+  #docview .md a { color:#c8553d; }
+  #docview .md a.cardlink { text-decoration:none; background:rgba(200,85,61,.08); border-radius:3px; padding:0 2px; }
+  #docview .md a.cardlink.missing { color:#999; background:none; cursor:default; }
+  #docview .close { position:sticky; float:right; top:0; font-size:24px; background:none; border:0; cursor:pointer; color:#555; }
+  #pages { position:fixed; inset:0; background:rgba(38,34,28,.55); display:none; flex-direction:column; z-index:60; }
+  #pages.on { display:flex; }
+  #pages .bar { display:flex; align-items:center; gap:12px; padding:12px 18px; background:var(--paper); border-bottom:1px solid var(--line); }
+  #pages .bar h2 { margin:0; font-size:17px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #pages .bar select { font:inherit; font-size:14px; padding:6px 10px; border-radius:10px; border:1px solid var(--line); background:#fff; max-width:42vw; }
+  #pages .bar .count { color:var(--faint); font-size:13px; white-space:nowrap; }
+  #pages .bar button { font-size:20px; background:none; border:0; cursor:pointer; color:var(--ink); padding:4px 8px; }
+  #pages .stage { flex:1; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; padding:16px; }
+  #pages .paper { background:#fff; box-shadow:0 6px 30px rgba(0,0,0,.25); max-width:100%; max-height:100%; display:block; }
+  #pages .nav { position:absolute; top:50%; transform:translateY(-50%); width:48px; height:48px; border-radius:24px; border:0; background:rgba(251,250,248,.92);
+    font-size:26px; cursor:pointer; color:var(--ink); box-shadow:0 2px 10px rgba(0,0,0,.15); }
+  #pages .prev { left:16px; } #pages .next { right:16px; }
+  #pages .note { color:#fff; font-size:15px; text-align:center; line-height:1.6; }
   #viewer .close { position:absolute; top:12px; right:16px; color:#fff; font-size:28px; background:none; border:0; cursor:pointer; }
 </style>
 </head>
@@ -75,6 +139,13 @@
 <div id="message">불러오는 중…</div>
 <div id="zoom" hidden><button id="zout" aria-label="작게">−</button><button id="zfit" aria-label="전체 보기">⤢</button><button id="zin" aria-label="크게">+</button></div>
 <div id="controls"><button id="prev" aria-label="이전">‹</button><span id="count"></span><button id="next" aria-label="다음">›</button><button id="stop" aria-label="발표 끝내기">✕</button></div>
+<div id="cover"><h1></h1><p class="intro"></p><div class="contact"></div>
+  <div class="go"><button id="enter">작업 보기 →</button><button id="enterPlay" class="ghost" hidden>▶ 발표로 보기</button></div>
+  <span class="credit">캔버스 노트로 만들었어요</span></div>
+<button id="home" aria-label="뒤로">‹</button>
+<div id="docview"><div class="sheet"><button class="close" aria-label="닫기">✕</button><h1 class="doc-title"></h1><div class="md"></div></div></div>
+<div id="pages"><div class="bar"><h2></h2><select aria-label="쪽 고르기"></select><span class="count"></span><span style="flex:1"></span><button class="close" aria-label="닫기">✕</button></div>
+  <div class="stage"><button class="nav prev" aria-label="이전 쪽">‹</button><div class="holder"></div><button class="nav next" aria-label="다음 쪽">›</button></div></div>
 <div id="viewer"><button class="close" aria-label="닫기">✕</button><button class="nav prev" aria-label="이전">‹</button><img alt=""><button class="nav next" aria-label="다음">›</button></div>
 <script>
 // 공개한 캔버스를 읽기만 하는 웹 열람 — 로그인 없이, 앱에 넣는 공개 키로 읽는다(서버 규칙이 공개한 것만 보여 준다)
@@ -87,6 +158,7 @@ const $ = id => document.getElementById(id);
 const shareID = new URLSearchParams(location.search).get("s");
 let boards = {}, items = {}, connectors = {}, documents = {}, rootID = null, currentID = null, stack = [];
 let view = { x:0, y:0, z:1 };
+let portfolio = false;
 const imageCache = {};
 
 async function rest(path) {
@@ -109,8 +181,11 @@ async function load() {
     if (!shares.length) return fail("공개가 끝났거나 없는 캔버스예요.");
     const share = shares[0];
     // 이름은 작업 공간의 지금 이름(공개한 뒤 바꿨어도)
-    const ws = await rest(`workspaces?id=eq.${share.workspace_id}&select=name`);
+    const ws = await rest(`workspaces?id=eq.${share.workspace_id}&select=name,kind,diary_document_id`);
+    diaryDocumentID = lower(ws[0]?.diary_document_id);
     share.title = ws[0]?.name || share.title;
+    portfolio = ws[0]?.kind === "portfolio";
+    if (portfolio) document.body.classList.add("portfolio");
     document.title = share.title + " · 캔버스 노트";
     const q = `workspace_id=eq.${share.workspace_id}&deleted=eq.false`;
     const [b, i, c, d] = await Promise.all([
@@ -129,6 +204,7 @@ async function load() {
     $("message").hidden = true;
     $("zoom").hidden = false;
     open(rootID, false);
+    if (portfolio) showCover();
   } catch (e) {
     console.error(e);
     fail("불러오지 못했어요. 잠시 뒤 다시 열어 주세요.");
@@ -169,8 +245,62 @@ function link(line) {
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) return `<a href="mailto:${esc(t)}">${esc(t)}</a>`;
   if (/^https?:\/\//i.test(t)) return `<a href="${esc(t)}" target="_blank" rel="noopener">${esc(t.replace(/^https?:\/\//i, ""))}</a>`;
   if (/^[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(t)) return `<a href="https://${esc(t)}" target="_blank" rel="noopener">${esc(t)}</a>`;
-  return `<span style="display:block;font-size:15px;color:rgba(38,38,38,.7)">${esc(t)}</span>`;
+  return `<span class="plain">${esc(t)}</span>`;
 }
+
+// 소개 카드의 바탕 — 사진(있으면) 또는 색. 글자는 어두운 바탕이면 희게
+function isDark(hex) {
+  const h = (hex || "").replace("#", "");
+  if (h.length < 6) return false;
+  const n = parseInt(h.slice(0, 6), 16);
+  return (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255 < 0.55;
+}
+function paintProfile(el, it) {
+  if (it.coverColor) el.style.backgroundColor = color(it.coverColor);
+  if (isDark(it.coverColor)) el.classList.add("dark");
+  if (it.filePath) {
+    el.classList.add("photo", "dark");
+    if (el.id !== "cover") el.style.minHeight = Math.max(it.height, 220) + "px";
+    fileURL(it.filePath).then(u => {
+      if (u) el.style.backgroundImage = `linear-gradient(rgba(0,0,0,.05), rgba(0,0,0,.55)), url("${u}")`;
+    });
+  }
+}
+
+// 포트폴리오 표지 — 맨 위 캔버스의 소개 카드
+function showCover() {
+  const it = (items[rootID] || []).find(x => x.kind === "profile");
+  const cover = $("cover");
+  cover.className = "on";
+  cover.style.backgroundColor = ""; cover.style.backgroundImage = "";
+  cover.querySelector("h1").textContent = it?.title || boards[rootID]?.name || "";
+  cover.querySelector(".intro").textContent = it?.text || "";
+  cover.querySelector(".intro").hidden = !it?.text;
+  cover.querySelector(".contact").innerHTML = (it?.contact || "").split("\n").filter(x => x.trim()).map(link).join("");
+  if (it?.coverColor) {
+    cover.style.backgroundColor = color(it.coverColor);
+    if (isDark(it.coverColor)) cover.classList.add("light");
+  }
+  if (it?.filePath) {
+    cover.classList.add("photo", "light");
+    fileURL(it.filePath).then(u => { if (u) cover.style.backgroundImage = `url("${u}")`; });
+  }
+  $("enterPlay").hidden = !(boards[rootID]?.slides?.length);
+}
+function leaveCover(play) {
+  if (currentID !== rootID) { stack = []; open(rootID, false); }
+  const cover = $("cover");
+  cover.classList.add("leaving");
+  setTimeout(() => { cover.className = ""; }, 500);
+  if (play) startPlaying(); else fit();
+}
+$("enter").onclick = () => leaveCover(false);
+$("enterPlay").onclick = () => leaveCover(true);
+// 폴더 안이면 한 칸 위로, 맨 위면 표지로
+$("home").onclick = () => {
+  if (stack.length) { currentID = null; open(stack.pop(), false); }
+  else showCover();
+};
 
 function render() {
   const el = $("board");
@@ -205,7 +335,7 @@ function render() {
   }
   el.appendChild(lines);
 
-  const photos = list.filter(it => it.kind === "image");
+  const photos = list.filter(it => it.kind === "image" && it.filePath);
   for (const it of list) {
     const card = document.createElement("div");
     card.className = "card";
@@ -213,20 +343,50 @@ function render() {
     switch (it.kind) {
       case "note":
         card.classList.add("note");
-        card.innerHTML = (it.title ? `<b>${esc(it.title)}</b>` : "") + esc(it.text);
+        if (it.title) card.innerHTML = `<b>${esc(it.title)}</b>` + esc(it.text);
+        else {
+          // 앱처럼 첫 줄은 굵게
+          const [head, ...rest] = (it.text || "").split("\n");
+          card.innerHTML = `<b>${esc(head)}</b>` + esc(rest.join("\n"));
+        }
+        if (it.coverColor) card.style.background = color(it.coverColor);
         card.style.height = "auto"; card.style.minHeight = it.height + "px";
         break;
       case "image": {
         card.classList.add("image");
+        if (!it.filePath) { card.classList.add("slot"); break; }   // 사진을 아직 넣지 않은 사진 자리
         const img = document.createElement("img");
         card.appendChild(img);
         if (it.filePath) fileURL(it.filePath).then(u => { if (u) img.src = u; });
         card.onclick = () => showPhoto(photos, photos.indexOf(it));
         break;
       }
+      case "link": {
+        // 웹 링크 — 누르면 새 탭에서 연다
+        card.classList.add("link", "clickable");
+        let host = ""; try { host = new URL(it.url).host.replace(/^www\./, ""); } catch {}
+        if (it.filePath) {
+          const img = document.createElement("img");
+          img.style.height = Math.round(it.width * 0.52) + "px";
+          card.appendChild(img);
+          fileURL(it.filePath).then(u => { if (u) img.src = u; else img.remove(); });
+        }
+        card.insertAdjacentHTML("beforeend", `<div class="lt">${esc(it.title || host)}</div><div class="lh">🌐 ${esc(host)}</div>`);
+        card.style.height = "auto";
+        card.onclick = () => { if (/^https?:\/\//i.test(it.url || "")) window.open(it.url, "_blank", "noopener"); };
+        break;
+      }
+      case "audio": {
+        // 녹음 — 소리는 녹음한 기기에만 있다(웹에는 이름과 길이만)
+        card.classList.add("link", "audio");
+        const d = Math.round(it.duration || 0);
+        card.insertAdjacentHTML("beforeend", `<div class="lt">🎙 ${esc(it.title || "녹음")}</div><div class="lh">${Math.floor(d / 60)}:${String(d % 60).padStart(2, "0")} · 소리는 앱에서 들을 수 있어요</div>`);
+        break;
+      }
       case "profile":
         card.classList.add("profile");
         card.style.height = "auto"; card.style.minHeight = it.height + "px";
+        paintProfile(card, it);
         card.innerHTML = `<h2>${esc(it.title)}</h2>` + (it.text ? `<p>${esc(it.text)}</p>` : "")
           + (it.contact || "").split("\n").filter(s => s.trim()).map(link).join("");
         break;
@@ -247,6 +407,8 @@ function render() {
         card.appendChild(cover);
         card.insertAdjacentHTML("beforeend", `<div class="title">${esc(doc.title || it.title)}</div>`);
         card.style.height = "auto";
+        card.classList.add("clickable");
+        card.onclick = () => showPages(it, doc);
         break;
       }
       case "folder": case "document": {
@@ -256,6 +418,10 @@ function render() {
         if (it.kind === "folder" && boards[child]) {
           card.classList.add("clickable");
           card.onclick = () => open(child);
+        }
+        if (it.kind === "document") {
+          card.classList.add("clickable");
+          card.onclick = () => showDoc(it);
         }
         break;
       }
@@ -450,6 +616,210 @@ addEventListener("keydown", e => {
 });
 
 // 사진 크게 보기 — 이 캔버스의 사진을 넘겨 본다
+// 문서 — 앱과 같은 마크다운(제목 · 굵게 · 기울임 · 취소선 · 코드 · 링크 · 목록 · 번호 · 할 일 · 인용)
+function inlineMd(t) {
+  let h = esc(t);
+  h = h.replace(/`([^`]+)`/g, "<code>$1</code>")
+       .replace(/\[\[([^\[\]\n]+)\]\]/g, (_, t) => `<a href="#" class="cardlink" data-title="${t.trim()}">${t}</a>`)
+       .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, url) => `<a href="${/^[a-z]+:\/\//i.test(url) ? url : "https://" + url}" target="_blank" rel="noopener">${label}</a>`)
+       .replace(/(^|[\s(])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
+       .replace(/\*\*(\S(?:.*?\S)?)\*\*/g, "<b>$1</b>")
+       .replace(/~~(\S(?:.*?\S)?)~~/g, "<s>$1</s>")
+       .replace(/(^|[^*])\*([^*\s](?:[^*\n]*?[^*\s])?)\*(?!\*)/g, "$1<i>$2</i>");
+  return h;
+}
+function renderMd(text) {
+  const out = []; let list = null;
+  const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  const open = tag => { if (list !== tag) { close(); out.push(`<${tag}>`); list = tag; } };
+  for (const line of (text || "").split("\n")) {
+    let m;
+    if ((m = line.match(/^(#{1,3})[ \t]+(.*)$/))) { close(); out.push(`<h${m[1].length}>${inlineMd(m[2])}</h${m[1].length}>`); }
+    else if ((m = line.match(/^[ \t]*[-*+][ \t]+\[([ xX])\][ \t]*(.*)$/))) { open("ul"); const done = m[1] !== " ";
+      out.push(`<li class="task${done ? " done" : ""}"><span class="box">${done ? "✓" : ""}</span>${inlineMd(m[2])}</li>`); }
+    else if ((m = line.match(/^[ \t]*[-*+][ \t]+(.*)$/))) { open("ul"); out.push(`<li>${inlineMd(m[1])}</li>`); }
+    else if ((m = line.match(/^[ \t]*\d+\.[ \t]+(.*)$/))) { open("ol"); out.push(`<li>${inlineMd(m[1])}</li>`); }
+    else if ((m = line.match(/^>[ \t]?(.*)$/))) { close(); out.push(`<blockquote>${inlineMd(m[1])}</blockquote>`); }
+    else if (!line.trim()) { close(); out.push("<p>&nbsp;</p>"); }
+    else { close(); out.push(`<p>${inlineMd(line)}</p>`); }
+  }
+  close();
+  return out.join("");
+}
+const docview = $("docview");
+function showDoc(it) {
+  docview.querySelector(".doc-title").textContent = it.title || "";
+  docview.querySelector(".md").innerHTML = renderMd(it.text || "");
+  docview.classList.add("on");
+}
+// [[제목]] — 같은 캔버스의 카드로: 문서면 열고, 다른 카드는 그 카드가 있는 캔버스를 연다
+docview.querySelector(".md").addEventListener("click", e => {
+  const a = e.target.closest("a.cardlink");
+  if (!a) return;
+  e.preventDefault();
+  const want = a.dataset.title.toLowerCase();
+  for (const [bid, list] of Object.entries(items)) {
+    const it = list.find(x => (x.title || "").trim().toLowerCase() === want);
+    if (!it) continue;
+    if (it.kind === "document") { showDoc(it); return; }
+    docview.classList.remove("on");
+    if (bid !== currentID) open(bid);
+    return;
+  }
+  a.classList.add("missing");
+});
+docview.querySelector(".close").onclick = () => docview.classList.remove("on");
+docview.onclick = e => { if (e.target === docview) docview.classList.remove("on"); };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && docview.classList.contains("on")) docview.classList.remove("on"); });
+
+// ── 노트북 · 다이어리 · PDF 쪽 넘겨 보기 ─────────────────────────────
+// 노트북 · 다이어리: 앱이 뜬 쪽 그림(pages.extra.image). 아직 없으면 손글씨만 빈 종이에.
+// PDF: 원본(documents.data.remotePath)을 pdf.js로 그리고 그 위에 손글씨(종이 폭 1000 단위)를 겹친다.
+let diaryDocumentID = null;
+const pagesView = $("pages");
+let pageList = [], pageAt = 0, pageDoc = null, pageKind = "", pdfDoc = null;
+const pad = n => String(n).padStart(2, "0");
+function pageLabel(key) {
+  let m;
+  if ((m = key.match(/^Y-(\d{4})$/))) return `${m[1]}년`;
+  if ((m = key.match(/^M-(\d{4})-(\d{2})$/))) return `${+m[2]}월`;
+  if ((m = key.match(/^W-(\d{4})-(\d{2})-(\d{2})$/))) return `${+m[2]}월 ${+m[3]}일 주`;
+  if ((m = key.match(/^D-(\d{4})-(\d{2})-(\d{2})$/))) return `${+m[2]}월 ${+m[3]}일`;
+  if ((m = key.match(/(\d{4})$/)) && key.startsWith("N-")) return `${pageKind === "diary" ? "노트 " : ""}${+m[1]}${pageKind === "diary" ? "" : "쪽"}`;
+  if ((m = key.match(/^p(\d+)$/))) return `${+m[1] + 1}쪽`;
+  return key;
+}
+function pageOrder(key) {
+  let m;
+  if ((m = key.match(/^Y-(\d{4})$/))) return `${m[1]}-00-00-0`;
+  if ((m = key.match(/^M-(\d{4})-(\d{2})$/))) return `${m[1]}-${m[2]}-00-1`;
+  if ((m = key.match(/^W-(\d{4})-(\d{2})-(\d{2})$/))) return `${m[1]}-${m[2]}-${m[3]}-2`;
+  if ((m = key.match(/^D-(\d{4})-(\d{2})-(\d{2})$/))) return `${m[1]}-${m[2]}-${m[3]}-3`;
+  return "z" + key;
+}
+async function showPages(it, doc) {
+  pageKind = it.kind; pageDoc = doc; pdfDoc = null;
+  pagesView.querySelector("h2").textContent = doc.title || it.title || (it.kind === "diary" ? "다이어리" : "노트북");
+  const holder = pagesView.querySelector(".holder");
+  holder.innerHTML = `<div class="note">불러오는 중…</div>`;
+  pagesView.classList.add("on");
+  try {
+    if (it.kind === "pdf") {
+      const count = (doc.pdfPageSizes || []).length;
+      const rows = await rest(`pages?document_id=eq.${lower(it.documentID)}&deleted=eq.false&select=key,strokes`);
+      const ink = Object.fromEntries(rows.map(r => [r.key, r.strokes]));
+      pageList = Array.from({ length: count }, (_, i) => ({ key: `p${i}`, strokes: ink[`p${i}`] || [] }));
+    } else {
+      const docID = it.kind === "diary" ? diaryDocumentID : lower(it.documentID);
+      if (!docID) throw new Error("none");
+      let rows = await rest(`pages?document_id=eq.${docID}&deleted=eq.false&select=key,extra`);
+      if (it.kind === "diary" && doc.year) rows = rows.filter(r => !/^[YMWD]-/.test(r.key) || r.key.slice(2, 6) === String(doc.year));
+      rows.sort((a, b) => pageOrder(a.key) < pageOrder(b.key) ? -1 : 1);
+      pageList = rows.map(r => ({ key: r.key, image: r.extra?.image, theme: r.extra?.theme || "", docID }));
+    }
+  } catch (e) { pageList = []; }
+  const select = pagesView.querySelector("select");
+  select.innerHTML = pageList.map((p, i) => `<option value="${i}">${esc(pageLabel(p.key))}</option>`).join("");
+  if (!pageList.length) { holder.innerHTML = `<div class="note">아직 쓴 쪽이 없거나 올라가지 않았어요.<br>앱에서 쪽을 고치면 곧 보여요.</div>`; return; }
+  showPage(0);
+}
+async function showPage(i) {
+  pageAt = Math.max(0, Math.min(pageList.length - 1, i));
+  const p = pageList[pageAt];
+  pagesView.querySelector("select").value = pageAt;
+  pagesView.querySelector(".count").textContent = `${pageAt + 1} / ${pageList.length}`;
+  pagesView.querySelector(".prev").hidden = pageAt === 0;
+  pagesView.querySelector(".next").hidden = pageAt === pageList.length - 1;
+  const holder = pagesView.querySelector(".holder");
+  const stage = pagesView.querySelector(".stage").getBoundingClientRect();
+  const maxW = stage.width - 140, maxH = stage.height - 32;
+  if (pageKind === "pdf") return showPdfPage(p, holder, maxW, maxH);
+  if (p.image) {
+    const url = await fileURL(p.image);
+    if (pageList[pageAt] !== p) return;
+    if (url) { holder.innerHTML = ""; const img = new Image(); img.className = "paper"; img.src = url;
+      img.style.maxWidth = maxW + "px"; img.style.maxHeight = maxH + "px"; holder.appendChild(img); return; }
+  }
+  // 그림이 아직 없다 — 손글씨만
+  if (!p.strokes) {
+    const rows = await rest(`pages?document_id=eq.${p.docID}&key=eq.${encodeURIComponent(p.key)}&select=strokes`);
+    p.strokes = rows[0]?.strokes || [];
+    if (pageList[pageAt] !== p) return;
+  }
+  const portrait = /vertical|portrait/i.test(p.theme);
+  drawPaper(holder, 1180, portrait ? 1514 : 840, p.strokes, 1, maxW, maxH);
+}
+function drawPaper(holder, w, h, strokes, unit, maxW, maxH, under) {
+  const k = Math.min(maxW / w, maxH / h);
+  const canvas = document.createElement("canvas");
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(w * k * dpr); canvas.height = Math.round(h * k * dpr);
+  canvas.style.width = Math.round(w * k) + "px"; canvas.style.height = Math.round(h * k) + "px";
+  canvas.className = "paper";
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fffdf8"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (under) ctx.drawImage(under, 0, 0, canvas.width, canvas.height);
+  drawInk(ctx, strokes, k * dpr * unit);
+  holder.innerHTML = ""; holder.appendChild(canvas);
+}
+function drawInk(ctx, strokes, scale) {
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (const s of strokes || []) {
+    const pts = s.points || [];
+    if (!pts.length) continue;
+    ctx.strokeStyle = color(s.color);
+    ctx.globalAlpha = s.tool === "marker" ? 0.4 : 1;
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineWidth = Math.max(0.6, (pts[i][3] || s.width || 2) * scale * (s.tool === "pen" || s.tool === "monoline" ? 0.55 : 0.7));
+      ctx.beginPath(); ctx.moveTo(pts[i - 1][0] * scale, pts[i - 1][1] * scale); ctx.lineTo(pts[i][0] * scale, pts[i][1] * scale); ctx.stroke();
+    }
+    if (pts.length === 1) { ctx.beginPath(); ctx.arc(pts[0][0] * scale, pts[0][1] * scale, (s.width || 2) * scale / 2, 0, 7); ctx.fillStyle = ctx.strokeStyle; ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+}
+let pdfjsReady = null;
+function loadPdfjs() {
+  if (!pdfjsReady) pdfjsReady = new Promise((ok, no) => {
+    const tag = document.createElement("script");
+    tag.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    tag.onload = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; ok(); };
+    tag.onerror = no; document.head.appendChild(tag);
+  });
+  return pdfjsReady;
+}
+async function showPdfPage(p, holder, maxW, maxH) {
+  const index = +p.key.slice(1);
+  const size = (pageDoc.pdfPageSizes || [])[index] || [1, 1.414];
+  const pw = 1000, ph = 1000 * (size[1] ?? size.height) / (size[0] ?? size.width);
+  let under = null;
+  try {
+    if (!pdfDoc && pageDoc.remotePath) {
+      await loadPdfjs();
+      const url = await fileURL(pageDoc.remotePath);
+      if (url) pdfDoc = await pdfjsLib.getDocument(url).promise;
+    }
+    if (pdfDoc) {
+      const page = await pdfDoc.getPage(index + 1);
+      const k = Math.min(maxW / pw, maxH / ph) * (window.devicePixelRatio || 1);
+      const vp = page.getViewport({ scale: k * pw / page.getViewport({ scale: 1 }).width });
+      under = document.createElement("canvas"); under.width = vp.width; under.height = vp.height;
+      await page.render({ canvasContext: under.getContext("2d"), viewport: vp }).promise;
+    }
+  } catch (e) { console.error(e); }
+  if (pageList[pageAt] !== p) return;
+  drawPaper(holder, pw, ph, p.strokes, 1, maxW, maxH, under);
+}
+pagesView.querySelector(".close").onclick = () => pagesView.classList.remove("on");
+pagesView.querySelector(".prev").onclick = () => showPage(pageAt - 1);
+pagesView.querySelector(".next").onclick = () => showPage(pageAt + 1);
+pagesView.querySelector("select").onchange = e => showPage(+e.target.value);
+document.addEventListener("keydown", e => {
+  if (!pagesView.classList.contains("on")) return;
+  if (e.key === "Escape") pagesView.classList.remove("on");
+  if (e.key === "ArrowRight") showPage(pageAt + 1);
+  if (e.key === "ArrowLeft") showPage(pageAt - 1);
+});
+
 const viewer = $("viewer");
 let shown = [], at = 0;
 async function showPhoto(list, index) {
