@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Butters — 사진 · 영상 · 기록을 위한 앱</title>
+<meta name="description" content="버터 편집 · 버터 카메라 · butter diary · runvery — 필름 같은 색감과 손으로 쓰는 기록을 위한 앱을 만듭니다.">
+<style>
+:root {
+  --bg: #e8e6e1; --raised: #efede8; --sunk: #e0ded8; --ink: #262522; --ash: #68655f; --line: #d5d2cb;
+  --blue: #0079ae; --blue-ink: #005f8a; --on-blue: #fff; --butter: #f3d36b;
+  --shadow: 0 1px 2px rgba(38,37,34,.06), 0 12px 32px rgba(38,37,34,.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #262522; --raised: #32312d; --sunk: #1c1b19; --ink: #e8e6e1; --ash: #96928a; --line: #44423d;
+    --blue: #3a9fd0; --blue-ink: #6cbbe2; --on-blue: #0f1416;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.35); }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif; word-break: keep-all; }
+a { color: var(--blue-ink); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+.top { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; height: 56px; gap: 12px; }
+.brand { font-weight: 800; font-size: 18px; letter-spacing: -.01em; color: var(--ink); text-decoration: none; display: flex; align-items: center; gap: 8px; }
+.brand i { width: 14px; height: 14px; border-radius: 4px; background: var(--butter); display: inline-block; }
+.lang { margin-left: auto; display: flex; gap: 4px; }
+.lang button { font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--raised); color: var(--ash);
+  border-radius: 8px; padding: 3px 10px; cursor: pointer; }
+.lang button[aria-pressed="true"] { color: var(--ink); border-color: var(--ash); }
+
+.hero { padding: 72px 0 36px; text-align: center; }
+.hero h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.25; margin: 0 0 14px; letter-spacing: -.02em; }
+.hero p { color: var(--ash); margin: 0 auto; max-width: 560px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; padding: 12px 0 24px; }
+.card { background: var(--raised); border: 1px solid var(--line); border-radius: 18px; padding: 22px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 12px; }
+.card header { display: flex; align-items: center; gap: 14px; }
+.card img { width: 64px; height: 64px; border-radius: 15px; flex: none; }
+.card img.mac { border-radius: 0; }
+.card h2 { font-size: 20px; margin: 0; line-height: 1.3; }
+.plat { font-size: 13px; color: var(--ash); }
+.card p { margin: 0; color: var(--ink); font-size: 15.5px; flex: 1; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font-size: 14px; text-decoration: none; padding: 7px 14px; border-radius: 10px; border: 1px solid var(--line); color: var(--ink); background: var(--bg); white-space: nowrap; }
+.btn.main { background: var(--blue); color: var(--on-blue); border-color: var(--blue); }
+.btn:hover { border-color: var(--ash); }
+
+h3.sec { font-size: 15px; color: var(--ash); font-weight: 600; margin: 28px 0 4px; }
+.soon { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; padding: 8px 0 32px; }
+.soon .card { box-shadow: none; background: transparent; }
+.soon .card img { width: 48px; height: 48px; border-radius: 11px; }
+.tag { font-size: 12px; color: var(--ash); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 2px; }
+
+footer { border-top: 1px solid var(--line); padding: 28px 0 48px; color: var(--ash); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+[data-en] { display: none; }
+html[lang="en"] [data-ko] { display: none; }
+html[lang="en"] [data-en] { display: revert; }
+</style>
+</head>
+<body>
+<div class="top"><div class="wrap">
+  <a class="brand" href="./"><i></i>The Butters</a>
+  <div class="lang">
+    <button type="button" data-lang="ko" aria-pressed="true">한국어</button>
+    <button type="button" data-lang="en" aria-pressed="false">English</button>
+  </div>
+</div></div>
+
+<main class="wrap">
+  <section class="hero">
+    <h1><span data-ko>찍고, 고르고, 남기는<br>작은 앱들</span><span data-en>Small apps for shooting,<br>editing and keeping</span></h1>
+    <p><span data-ko>필름 같은 색감으로 찍고, 빠르게 고르고 보정하고, 손으로 쓰고 달린 하루를 남기는 앱을 만듭니다.</span>
+       <span data-en>Apps for film-like colour, fast culling and editing, handwritten planning, and recording your runs.</span></p>
+  </section>
+
+  <div class="grid">
+    <article class="card">
+      <header><img class="mac" src="img/edit.png" alt=""><div><h2><span data-ko>버터 편집</span><span data-en>Butter Edit</span></h2><div class="plat">Mac · Windows</div></div></header>
+      <p><span data-ko>폴더를 그대로 열어 바로 고르고 보정하는 RAW 사진 편집기. 사진은 내 컴퓨터를 떠나지 않습니다.</span>
+         <span data-en>A fast RAW photo editor that opens your folders as they are — no import. Your photos never leave your computer.</span></p>
+      <div class="btns"><a class="btn main" href="butter-edit/"><span data-ko>홈페이지</span><span data-en>Website</span></a><a class="btn" href="butter-edit/buy.html"><span data-ko>구입</span><span data-en>Buy</span></a></div>
+    </article>
+
+    <article class="card">
+      <header><img src="img/camera.jpg" alt=""><div><h2><span data-ko>버터 카메라</span><span data-en>Butter Camera</span></h2><div class="plat">iPhone · Apple Watch</div></div></header>
+      <p><span data-ko>셔터를 누르는 순간 필름 같은 색감이 입혀지는 카메라. 나중에 보정할 필요가 없습니다.</span>
+         <span data-en>A camera that bakes film-like colour into every photo and video the moment you press the shutter.</span></p>
+      <div class="btns"><a class="btn main" href="https://apps.apple.com/app/id6828787678">App Store</a><a class="btn" href="butter-camera/"><span data-ko>지원</span><span data-en>Support</span></a></div>
+    </article>
+
+    <article class="card">
+      <header><img src="img/diary.jpg" alt=""><div><h2>butter diary</h2><div class="plat">iPad</div></div></header>
+      <p><span data-ko>애플펜슬로 손글씨를 쓰는 아이패드 플래너. 표시한 줄은 캘린더와 미리알림에 담깁니다.</span>
+         <span data-en>A handwritten planner for iPad and Apple Pencil. Marked lines go straight to Calendar and Reminders.</span></p>
+      <div class="btns"><a class="btn main" href="https://apps.apple.com/app/id6829740241">App Store</a><a class="btn" href="butter-diary/"><span data-ko>지원</span><span data-en>Support</span></a></div>
+    </article>
+
+    <article class="card">
+      <header><img src="img/runvery.jpg" alt=""><div><h2>runvery</h2><div class="plat">iPhone · Apple Watch · Android</div></div></header>
+      <p><span data-ko>달리기 · 등산 · 자전거를 기록하고, 그 기록으로 인증샷을 만들고, 크루와 함께 달립니다.</span>
+         <span data-en>Record runs, hikes and rides, turn them into share-ready photos, and run with your crew.</span></p>
+      <div class="btns"><a class="btn main" href="https://apps.apple.com/app/id6828036317">App Store</a><a class="btn" href="https://play.google.com/store/apps/details?id=com.somang.runveryrun">Google Play</a><a class="btn" href="runvery/support.html"><span data-ko>지원</span><span data-en>Support</span></a></div>
+    </article>
+  </div>
+
+  <h3 class="sec"><span data-ko>준비 중</span><span data-en>Coming soon</span></h3>
+  <div class="soon">
+    <article class="card">
+      <header><img src="img/upload.jpg" alt=""><div><h2><span data-ko>버터 업로드</span><span data-en>Butter Upload</span></h2><div class="plat">iPhone</div></div></header>
+      <p><span data-ko>세로 영상 하나를 쇼츠 · 릴스 · 틱톡에 한 번에 올립니다.</span><span data-en>Post one vertical video to Shorts, Reels and TikTok at once.</span></p>
+    </article>
+    <article class="card">
+      <header><img src="img/canvasnote.jpg" alt=""><div><h2><span data-ko>캔버스 노트</span><span data-en>Canvas Note</span></h2><div class="plat">iPad</div></div></header>
+      <p><span data-ko>끝없는 판에 쓰고 붙여 포트폴리오와 발표를 만듭니다.</span><span data-en>An endless canvas for notes, portfolios and presentations.</span></p>
+    </article>
+  </div>
+</main>
+
+<footer><div class="wrap">
+  <span>© 2026 The Butters</span>
+  <span><span data-ko>문의</span><span data-en>Contact</span> · <a href="mailto:mmangmm@naver.com">mmangmm@naver.com</a></span>
+</div></footer>
+
+<script>
+(function () {
+  function set(l) {
+    document.documentElement.lang = l;
+    document.querySelectorAll('.lang button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.lang === l); });
+    try { localStorage.setItem('lang', l); } catch (e) {}
+  }
+  var saved = null; try { saved = localStorage.getItem('lang'); } catch (e) {}
+  set(saved || (/^ko/i.test(navigator.language) ? 'ko' : 'en'));
+  document.querySelectorAll('.lang button').forEach(function (b) { b.onclick = function () { set(b.dataset.lang); }; });
+})();
+</script>
+</body>
+</html>
