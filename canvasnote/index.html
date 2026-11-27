@@ -116,6 +116,8 @@
   #docview .md hr { border:0; border-top:1px solid rgba(38,38,38,.15); margin:16px 0; }
   #docview .md .callout { background:rgba(200,85,61,.10); border-radius:10px; padding:10px 14px; margin:8px 0; }
   #docview .md pre { background:rgba(38,38,38,.05); border-radius:8px; padding:10px 14px; overflow:auto; font-size:14px; }
+  #docview .md img.docimg { display:block; max-width:100%; max-height:640px; border-radius:6px; margin:10px 0; }
+  #docview .md .subpage { font-weight:600; margin:6px 0; }
   #docview .md details { margin:6px 0; } #docview .md details > *:not(summary) { margin-left:18px; }
   #docview .md summary { cursor:pointer; font-weight:600; }
   #docview .cover-img { height:180px; border-radius:14px; background:center/cover no-repeat; margin-bottom:14px; }
@@ -770,6 +772,10 @@ function renderMd(text) {
       out.push(`<details${m[1] === "▾" ? " open" : ""}><summary>${inlineMd(m[2])}</summary>${renderMd(inner.join("\n"))}</details>`);
       continue;
     }
+    // 문서 안 사진 — ![](asset:id), 길은 카드의 docImages에(showDoc이 채운다)
+    if ((m = line.match(/^!\[[^\]\n]*\]\(asset:([0-9A-Fa-f-]{36})\)\s*$/))) { close(); out.push(`<img class="docimg" data-asset="${m[1].toUpperCase()}" alt="">`); continue; }
+    // 하위 페이지 — 📄 [[제목]]
+    if ((m = line.match(/^📄[ \t]*(\[\[[^\[\]\n]+\]\])\s*$/))) { close(); out.push(`<p class="subpage">📄 ${inlineMd(m[1])}</p>`); continue; }
     if (/^\s*(-{3,}|\*{3,})\s*$/.test(line)) { close(); out.push("<hr>"); }
     else if ((m = line.match(/^>[ \t]?\[![^\]]*\][ \t]?(.*)$/))) { close(); out.push(`<div class="callout">${inlineMd(m[1])}</div>`); }
     else if ((m = line.match(/^(#{1,3})[ \t]+(.*)$/))) { close(); out.push(`<h${m[1].length}>${inlineMd(m[2])}</h${m[1].length}>`); }
@@ -786,8 +792,12 @@ function renderMd(text) {
 }
 const docview = $("docview");
 function showDoc(it) {
-  docview.querySelector(".doc-title").textContent = it.title || "";
+  docview.querySelector(".doc-title").textContent = (it.docIcon ? it.docIcon + " " : "") + (it.title || "");
   docview.querySelector(".md").innerHTML = renderMd(it.text || "");
+  for (const img of docview.querySelectorAll(".md img.docimg")) {
+    const path = (it.docImages || {})[img.dataset.asset];
+    if (path) fileURL(path).then(u => { if (u) img.src = u; else img.remove(); }); else img.remove();
+  }
   // 문서 스타일 — 글꼴 · 커버 사진
   const sheet = docview.querySelector(".sheet");
   sheet.style.fontFamily = ({ serif: '"AppleMyungjo", "Nanum Myeongjo", "Noto Serif KR", serif', mono: "ui-monospace, Menlo, monospace",
@@ -803,7 +813,8 @@ docview.querySelector(".md").addEventListener("click", e => {
   const a = e.target.closest("a.cardlink");
   if (!a) return;
   e.preventDefault();
-  const want = a.dataset.title.toLowerCase();
+  // [[제목 › 쪽]] — 웹에서는 쪽 부분을 떼고 카드로
+  const want = a.dataset.title.split(/[›>#]/)[0].trim().toLowerCase();
   for (const [bid, list] of Object.entries(items)) {
     const it = list.find(x => (x.title || "").trim().toLowerCase() === want);
     if (!it) continue;
