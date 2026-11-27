@@ -23,6 +23,8 @@
   .card { position:absolute; }
   .card.link { background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 3px 8px rgba(0,0,0,.08); border:1px solid rgba(0,0,0,.06); text-decoration:none; color:inherit; display:block; }
   .card.link img { width:100%; object-fit:cover; display:block; }
+  .card.video .vbox { background:#000 center/cover no-repeat; display:flex; align-items:center; justify-content:center; }
+  .card.video .vplay { width:56px; height:56px; border-radius:28px; background:rgba(0,0,0,.55); color:#fff; font-size:24px; display:flex; align-items:center; justify-content:center; padding-left:4px; }
   .card.link .lt { font-weight:600; font-size:16px; padding:14px 16px 4px; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
   .card.link .lh { font-size:13px; color:rgba(43,43,43,.5); padding:0 16px 14px; }
   .note { background:var(--note); border-radius:6px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.08);
@@ -108,9 +110,24 @@
   #docview .md blockquote { margin:6px 0; padding-left:12px; border-left:3px solid #ddd; color:#777; }
   #docview .md code { background:rgba(0,0,0,.06); padding:1px 5px; border-radius:4px; font-size:15px; }
   #docview .md a { color:#c8553d; }
+  #docview .md table { border-collapse:collapse; margin:10px 0; font-size:15px; }
+  #docview .md th, #docview .md td { border:1px solid rgba(38,38,38,.15); padding:6px 12px; text-align:left; }
+  #docview .md th { background:rgba(38,38,38,.04); font-weight:600; }
+  #docview .md hr { border:0; border-top:1px solid rgba(38,38,38,.15); margin:16px 0; }
+  #docview .md .callout { background:rgba(200,85,61,.10); border-radius:10px; padding:10px 14px; margin:8px 0; }
+  #docview .md pre { background:rgba(38,38,38,.05); border-radius:8px; padding:10px 14px; overflow:auto; font-size:14px; }
+  #docview .md details { margin:6px 0; } #docview .md details > *:not(summary) { margin-left:18px; }
+  #docview .md summary { cursor:pointer; font-weight:600; }
+  #docview .cover-img { height:180px; border-radius:14px; background:center/cover no-repeat; margin-bottom:14px; }
   #docview .md a.cardlink { text-decoration:none; background:rgba(200,85,61,.08); border-radius:3px; padding:0 2px; }
   #docview .md a.cardlink.missing { color:#999; background:none; cursor:default; }
   #docview .close { position:sticky; float:right; top:0; font-size:24px; background:none; border:0; cursor:pointer; color:#555; }
+  #lock { position:fixed; inset:0; background:var(--desk); display:flex; align-items:center; justify-content:center; z-index:80; }
+  #lock form { background:var(--paper); border-radius:18px; padding:28px; width:min(360px, 90vw); box-shadow:0 6px 30px rgba(0,0,0,.08); text-align:center; }
+  #lock h2 { font-size:18px; margin:0 0 16px; }
+  #lock input { width:100%; font-size:17px; padding:12px; border-radius:10px; border:1px solid var(--line); margin-bottom:12px; }
+  #lock button { width:100%; font-size:16px; font-weight:600; padding:12px; border:0; border-radius:10px; background:#c8553d; color:#fff; cursor:pointer; }
+  #lock .err { color:#c8553d; font-size:14px; min-height:1em; margin:10px 0 0; }
   #pages { position:fixed; inset:0; background:rgba(38,34,28,.55); display:none; flex-direction:column; z-index:60; }
   #pages.on { display:flex; }
   #pages .bar { display:flex; align-items:center; gap:12px; padding:12px 18px; background:var(--paper); border-bottom:1px solid var(--line); }
@@ -161,12 +178,27 @@ let view = { x:0, y:0, z:1 };
 let portfolio = false;
 const imageCache = {};
 
+// 비밀번호가 걸린 웹 링크 — 맞춘 비밀번호를 요청 머리에 실어 보낸다(서버 규칙이 확인한다)
+let sharePassword = "", shareLocked = false;
 async function rest(path) {
-  const r = await fetch(`${SUPABASE}/rest/v1/${path}`, { headers: { apikey: KEY } });
+  const headers = { apikey: KEY };
+  if (sharePassword) headers["x-share-password"] = sharePassword;
+  const r = await fetch(`${SUPABASE}/rest/v1/${path}`, { headers });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
+async function rpc(name, body) {
+  const r = await fetch(`${SUPABASE}/rest/v1/rpc/${name}`, { method: "POST", headers: { apikey: KEY, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.status === 204 ? null : r.json();
+}
 async function fileURL(path) {
+  if (shareLocked && !imageCache[path]) {
+    // 저장소 규칙에는 머리가 닿지 않아 서명 주소를 받아 쓴다
+    imageCache[path] = fetch(`${SUPABASE}/functions/v1/share-files`, { method: "POST", headers: { apikey: KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ share: shareID, password: sharePassword, paths: [path] }) })
+      .then(r => r.ok ? r.json() : null).then(j => j?.urls?.[path] || null).catch(() => null);
+  }
   if (!imageCache[path]) {
     imageCache[path] = fetch(`${SUPABASE}/storage/v1/object/authenticated/files/${path.split("/").map(encodeURIComponent).join("/")}`, { headers: { apikey: KEY } })
       .then(r => r.ok ? r.blob() : null).then(b => b ? URL.createObjectURL(b) : null);
@@ -180,6 +212,20 @@ async function load() {
     const shares = await rest(`shares?id=eq.${encodeURIComponent(shareID)}&is_public=eq.true&select=id,title,workspace_id,root_id`);
     if (!shares.length) return fail("공개가 끝났거나 없는 캔버스예요.");
     const share = shares[0];
+    // 비밀번호가 걸렸으면 먼저 묻는다(서버에 이 기능이 없으면 그냥 지나간다)
+    shareLocked = await rpc("share_locked", { share: shareID }).catch(() => false);
+    if (shareLocked) {
+      sharePassword = sessionStorage.getItem("cn-pw-" + shareID) || "";
+      if (!sharePassword || !(await rpc("share_unlock", { share: shareID, password: sharePassword }).catch(() => false))) {
+        sharePassword = await askPassword();
+        sessionStorage.setItem("cn-pw-" + shareID, sharePassword);
+      }
+    }
+    // 조회수(이 창에서 한 번)
+    if (!sessionStorage.getItem("cn-view-" + shareID)) {
+      sessionStorage.setItem("cn-view-" + shareID, "1");
+      rpc("record_share_view", { share: shareID }).catch(() => {});
+    }
     // 이름은 작업 공간의 지금 이름(공개한 뒤 바꿨어도)
     const ws = await rest(`workspaces?id=eq.${share.workspace_id}&select=name,kind,diary_document_id`);
     diaryDocumentID = lower(ws[0]?.diary_document_id);
@@ -209,6 +255,23 @@ async function load() {
     console.error(e);
     fail("불러오지 못했어요. 잠시 뒤 다시 열어 주세요.");
   }
+}
+// 비밀번호 묻기 — 맞을 때까지
+function askPassword() {
+  return new Promise(resolve => {
+    const box = document.createElement("div");
+    box.id = "lock";
+    box.innerHTML = `<form><h2>비밀번호가 걸린 캔버스예요</h2><input type="password" autocomplete="current-password" placeholder="비밀번호" required>
+      <button type="submit">열기</button><p class="err"></p></form>`;
+    document.body.appendChild(box);
+    const input = box.querySelector("input"), err = box.querySelector(".err");
+    input.focus();
+    box.querySelector("form").onsubmit = async e => {
+      e.preventDefault();
+      const ok = await rpc("share_unlock", { share: shareID, password: input.value }).catch(() => false);
+      if (ok) { box.remove(); resolve(input.value); } else { err.textContent = "비밀번호가 맞지 않아요"; input.select(); }
+    };
+  });
 }
 function fail(text) { $("message").textContent = text; $("message").hidden = false; }
 
@@ -374,6 +437,47 @@ function render() {
         card.insertAdjacentHTML("beforeend", `<div class="lt">${esc(it.title || host)}</div><div class="lh">🌐 ${esc(host)}</div>`);
         card.style.height = "auto";
         card.onclick = () => { if (/^https?:\/\//i.test(it.url || "")) window.open(it.url, "_blank", "noopener"); };
+        break;
+      }
+      case "file": {
+        // 파일 — 누르면 받는다(올린 것만)
+        card.classList.add("link", "filecard");
+        const ext = ((it.fileName || "").split(".").pop() || "").toUpperCase();
+        const size = it.fileSize ? (it.fileSize > 1e6 ? (it.fileSize / 1e6).toFixed(1) + " MB" : Math.round(it.fileSize / 1e3) + " KB") : "";
+        card.insertAdjacentHTML("beforeend", `<div class="lt">📄 ${esc(it.title || it.fileName || "파일")}</div><div class="lh">${esc([ext, size].filter(Boolean).join(" · "))}</div>`);
+        if (it.remoteFile) {
+          card.classList.add("clickable");
+          card.onclick = async () => {
+            const u = await fileURL(it.remoteFile);
+            if (!u) return;
+            const a = document.createElement("a"); a.href = u; a.download = it.fileName || "file"; a.click();
+          };
+        }
+        break;
+      }
+      case "video": {
+        // 동영상 — 누르면 그 자리에서 재생(유튜브는 퍼가기, 내 동영상은 올린 것만)
+        card.classList.add("link", "video", "clickable");
+        const box = document.createElement("div");
+        box.className = "vbox"; box.style.height = Math.round(it.width * 9 / 16) + "px";
+        if (it.filePath) fileURL(it.filePath).then(u => { if (u) box.style.backgroundImage = `url("${u}")`; });
+        box.innerHTML = `<div class="vplay">▶</div>`;
+        card.appendChild(box);
+        card.insertAdjacentHTML("beforeend", `<div class="lt">${esc(it.title || it.fileName || "동영상")}</div>`);
+        const yt = (it.url || "").match(/[?&]v=([\w-]{6,})|youtu\.be\/([\w-]{6,})|\/(?:shorts|embed|live)\/([\w-]{6,})/);
+        card.onclick = async () => {
+          if (box.dataset.on) return;
+          const id = yt && (yt[1] || yt[2] || yt[3]);
+          if (id) {
+            box.dataset.on = 1;
+            box.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${id}?autoplay=1&playsinline=1&rel=0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen style="width:100%;height:100%;border:0"></iframe>`;
+          } else if (it.remoteFile) {
+            const u = await fileURL(it.remoteFile);
+            if (!u) return;
+            box.dataset.on = 1;
+            box.innerHTML = `<video src="${u}" controls autoplay playsinline style="width:100%;height:100%;background:#000"></video>`;
+          }
+        };
         break;
       }
       case "audio": {
@@ -632,9 +736,43 @@ function renderMd(text) {
   const out = []; let list = null;
   const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
   const open = tag => { if (list !== tag) { close(); out.push(`<${tag}>`); list = tag; } };
-  for (const line of (text || "").split("\n")) {
+  const lines = (text || "").split("\n");
+  for (let n = 0; n < lines.length; n++) {
+    const line = lines[n];
     let m;
-    if ((m = line.match(/^(#{1,3})[ \t]+(.*)$/))) { close(); out.push(`<h${m[1].length}>${inlineMd(m[2])}</h${m[1].length}>`); }
+    // 코드 묶음
+    if (/^```/.test(line)) {
+      close();
+      const body = [];
+      while (++n < lines.length && !/^```/.test(lines[n])) body.push(lines[n]);
+      out.push(`<pre><code>${esc(body.join("\n"))}</code></pre>`);
+      continue;
+    }
+    // 표 — 이어진 | 줄들
+    if (/^\s*\|.*\|\s*$/.test(line)) {
+      close();
+      const rows = [];
+      while (n < lines.length && /^\s*\|.*\|\s*$/.test(lines[n])) rows.push(lines[n++]);
+      n--;
+      const cells = r => r.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+      const isRule = r => cells(r).every(c => /^:?-{2,}:?$/.test(c));
+      const body = rows.filter(r => !isRule(r));
+      const head = rows.length > 1 && isRule(rows[1]) ? body.shift() : null;
+      out.push(`<table>${head ? `<thead><tr>${cells(head).map(c => `<th>${inlineMd(c)}</th>`).join("")}</tr></thead>` : ""}<tbody>${
+        body.map(r => `<tr>${cells(r).map(c => `<td>${inlineMd(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`);
+      continue;
+    }
+    // 접는 목록 — ▾ 펼침 · ▸ 접힘, 아래 들여 쓴 줄들이 안쪽
+    if ((m = line.match(/^([▾▸])[ \t]+(.*)$/))) {
+      close();
+      const inner = [];
+      while (n + 1 < lines.length && /^(  |\t)/.test(lines[n + 1])) inner.push(lines[++n].replace(/^(  |\t)/, ""));
+      out.push(`<details${m[1] === "▾" ? " open" : ""}><summary>${inlineMd(m[2])}</summary>${renderMd(inner.join("\n"))}</details>`);
+      continue;
+    }
+    if (/^\s*(-{3,}|\*{3,})\s*$/.test(line)) { close(); out.push("<hr>"); }
+    else if ((m = line.match(/^>[ \t]?\[![^\]]*\][ \t]?(.*)$/))) { close(); out.push(`<div class="callout">${inlineMd(m[1])}</div>`); }
+    else if ((m = line.match(/^(#{1,3})[ \t]+(.*)$/))) { close(); out.push(`<h${m[1].length}>${inlineMd(m[2])}</h${m[1].length}>`); }
     else if ((m = line.match(/^[ \t]*[-*+][ \t]+\[([ xX])\][ \t]*(.*)$/))) { open("ul"); const done = m[1] !== " ";
       out.push(`<li class="task${done ? " done" : ""}"><span class="box">${done ? "✓" : ""}</span>${inlineMd(m[2])}</li>`); }
     else if ((m = line.match(/^[ \t]*[-*+][ \t]+(.*)$/))) { open("ul"); out.push(`<li>${inlineMd(m[1])}</li>`); }
@@ -650,6 +788,14 @@ const docview = $("docview");
 function showDoc(it) {
   docview.querySelector(".doc-title").textContent = it.title || "";
   docview.querySelector(".md").innerHTML = renderMd(it.text || "");
+  // 문서 스타일 — 글꼴 · 커버 사진
+  const sheet = docview.querySelector(".sheet");
+  sheet.style.fontFamily = ({ serif: '"AppleMyungjo", "Nanum Myeongjo", "Noto Serif KR", serif', mono: "ui-monospace, Menlo, monospace",
+    rounded: 'ui-rounded, "SF Pro Rounded", -apple-system, sans-serif' })[it.docFont] || "";
+  let cover = sheet.querySelector(".cover-img");
+  if (!cover) { cover = document.createElement("div"); cover.className = "cover-img"; sheet.insertBefore(cover, sheet.querySelector(".doc-title")); }
+  cover.style.display = "none";
+  if (it.filePath) fileURL(it.filePath).then(u => { if (u) { cover.style.backgroundImage = `url("${u}")`; cover.style.display = "block"; } });
   docview.classList.add("on");
 }
 // [[제목]] — 같은 캔버스의 카드로: 문서면 열고, 다른 카드는 그 카드가 있는 캔버스를 연다
